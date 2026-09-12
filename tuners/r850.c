@@ -2419,10 +2419,16 @@ static R850_ErrCode R850_GetRfRssi( struct r850_priv*priv,u32 RF_Freq_Khz, enum 
 
 	if(rf_gain_info.RF_gain1 >= 10)
 	{
-		u1LnaGainqFactorIdx = (u8) ((RF_Freq_Khz-50000) / 10000);
+		if (RF_Freq_Khz < 50000) {
+			u1LnaGainqFactorIdx = 0;
+		} else {
+			u1LnaGainqFactorIdx = (u8) ((RF_Freq_Khz-50000) / 10000);
 
-		if( ((RF_Freq_Khz-50000)  - (u1LnaGainqFactorIdx * 10000))>=5000)
-			u1LnaGainqFactorIdx +=1;
+			if( ((RF_Freq_Khz-50000)  - (u1LnaGainqFactorIdx * 10000))>=5000)
+				u1LnaGainqFactorIdx +=1;
+		}
+		if (u1LnaGainqFactorIdx >= sizeof(Lna_Acc_Gain_offset))
+			u1LnaGainqFactorIdx = sizeof(Lna_Acc_Gain_offset) - 1;
 		acc_lna_gain += (u16)(Lna_Acc_Gain_offset[u1LnaGainqFactorIdx]);
 
 	}
