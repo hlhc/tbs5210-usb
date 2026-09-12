@@ -66,6 +66,8 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 	for (i = 0; i < num; i++)
 		if (msg[i].len > sizeof(buf6) - 2)
 			return -EOPNOTSUPP;
+	if (num == 2 && msg[0].len < 1)
+		return -EOPNOTSUPP;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
