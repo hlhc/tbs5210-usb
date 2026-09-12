@@ -12,7 +12,9 @@ operator guide; this file is the agent-onboarding summary.
   to another; rebuild per kernel (or via DKMS).
 
 ## Build & install (on Linux)
-- `make -j$(nproc)` → `dvb-usb-tbs5210.ko`, `gx1503.ko`, `r850.ko`.
+- `make -j$(nproc)` → `build/dvb-usb-tbs5210.ko`, `build/gx1503.ko`,
+  `build/r850.ko` (Kbuild `MO=`; source tree stays clean). `make BUILD= ...`
+  builds in-tree; DKMS does this so its module discovery still works.
 - `sudo make install` (installs to `/lib/modules/$(uname -r)/extra`, runs `depmod`).
 - `sudo cp firmware/dvb-usb-id5210.fw /lib/firmware/`.
 - Override the kernel build dir with `KDIR=`; the `check` target validates it

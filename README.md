@@ -79,6 +79,12 @@ make -j$(nproc)
 sudo make install
 ```
 
+The three modules are written to `build/` (`build/dvb-usb-tbs5210.ko`,
+`build/gx1503.ko`, `build/r850.ko`); the source tree stays clean. On older
+kernels that don't support the external-module output directory (`MO=`) they
+fall back in-tree. Use `make BUILD= ...` to always build in-tree (DKMS does
+this).
+
 Install the firmware:
 
 ```sh

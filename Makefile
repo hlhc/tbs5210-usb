@@ -8,12 +8,20 @@
 #
 # Override the kernel build dir if needed:
 #   make KDIR=/usr/src/kernels/$(uname -r)
+#
+# Build artifacts go to ./build, keeping the source tree clean. On kernels
+# that support the external-module output directory this uses MO=; on older
+# kernels MO= is ignored and the build falls back in-tree. Set BUILD= to
+# force an in-tree build (used by DKMS):
+#   make BUILD=
 
-KVER ?= $(shell uname -r)
-KDIR ?= /lib/modules/$(KVER)/build
+KVER  ?= $(shell uname -r)
+KDIR  ?= /lib/modules/$(KVER)/build
+BUILD ?= $(CURDIR)/build
 
 default: check
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	@if [ -n "$(BUILD)" ]; then mkdir -p "$(BUILD)"; fi
+	$(MAKE) -C $(KDIR) M=$(CURDIR) MO=$(BUILD) modules
 
 check:
 	@test -d "$(KDIR)" || { \
@@ -24,12 +32,17 @@ check:
 		exit 1; }
 
 install: default
-	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
+	$(MAKE) -C $(KDIR) M=$(CURDIR) MO=$(BUILD) modules_install
 	depmod -a $(KVER)
 	@echo "Installed. On kernels with module signing (Fedora + Secure Boot)"
 	@echo "the module must be signed, e.g. via mokutil/sign-file or akmods."
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	@if [ -n "$(BUILD)" ] && [ -d "$(BUILD)" ]; then \
+		$(MAKE) -C $(KDIR) M=$(CURDIR) MO=$(BUILD) clean; \
+		rm -rf "$(BUILD)"; \
+	else \
+		$(MAKE) -C $(KDIR) M=$(CURDIR) clean; \
+	fi
 
 .PHONY: default check install clean
