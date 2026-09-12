@@ -30,23 +30,29 @@ builds on 6.x within the range supported by the sources.
 Only the USB device driver needs to bind; `r850` is pulled in as a symbol
 dependency and `gx1503` is requested via `request_module("gx1503")`.
 
-### Why the vendored `dvb-usb/dvb-usb.h`?
+### Why the vendored `vendor/dvb-usb.h`?
 
 `drivers/media/usb/dvb-usb/dvb-usb.h` is a driver-private header that the
 distro header packages do **not** install, but the kernel exports
 `dvb_usb_device_init()` / `dvb_usb_device_exit()`. We therefore vendor a
-copy of that header. It defines `struct dvb_usb_device_properties`, which
-is passed *into* the kernel's `dvb-usb` core, so **it must match the ABI
-of the running kernel's `dvb-usb.ko`**. The copy here is from mainline 7.3.
+copy of that header (plus the `dvb-pll.h` it includes) under `vendor/`. It
+defines `struct dvb_usb_device_properties`, which is passed *into* the
+kernel's `dvb-usb` core, so **it must match the ABI of the running kernel's
+`dvb-usb.ko`**. The committed copy tracks mainline `master`.
 
-If your kernel carries patches that change this structure, refresh the
-vendored headers from that kernel's source tree:
+Refresh from kernel.org (default), from a tag/branch, or from a local kernel
+source tree:
 
 ```sh
-./refresh-headers.sh /path/to/linux-kernel-source
+./refresh-headers.sh              # mainline master from kernel.org
+./refresh-headers.sh v7.2         # a specific mainline tag/branch
+./refresh-headers.sh /path/to/linux-kernel-source   # distro kernel tree
 #   Debian : apt-get source linux   (or the matching linux-source-<ver>)
 #   Fedora : see "Refreshing headers on Fedora" below
 ```
+
+For a kernel that carries patches (e.g. Fedora), prefer the local-tree form:
+the running `dvb-usb.ko` was built from that layout, not from mainline.
 
 ## Prerequisites
 

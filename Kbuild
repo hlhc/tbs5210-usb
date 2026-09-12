@@ -1,10 +1,10 @@
 # Kbuild for the standalone TBS5210 driver set.
 #
 # Builds against the running kernel's own dvb-core/dvb-usb; does NOT
-# ship a v4l media tree.  The private header dvb-usb/dvb-usb.h is
+# ship a v4l media tree.  The private header vendor/dvb-usb.h is
 # vendored and must match the target kernel's dvb-usb core ABI.
 
-ccflags-y += -I$(src)/dvb-usb/
+ccflags-y += -I$(src)/vendor/
 ccflags-y += -I$(src)/frontends/
 ccflags-y += -I$(src)/tuners/
 

@@ -28,11 +28,13 @@ operator guide; this file is the agent-onboarding summary.
 - All three are required. Only `dvb-usb-tbs5210` is user-loaded.
 
 ## Critical: vendored private headers
-- `dvb-usb/dvb-usb.h` and `dvb-usb/dvb-pll.h` are kernel-private headers that
+- `vendor/dvb-usb.h` and `vendor/dvb-pll.h` are kernel-private headers that
   `linux-headers`/`kernel-devel` do not ship. `dvb-usb.h` defines structs
   passed into the kernel's `dvb-usb.ko`, so its layout must match the running
   kernel.
-- Do **not** hand-edit them. Refresh with `./refresh-headers.sh <kernel-src>`.
+- Do **not** hand-edit them. Refresh with `./refresh-headers.sh` (kernel.org
+  master), `./refresh-headers.sh <tag>` (a mainline ref), or
+  `./refresh-headers.sh <kernel-src>` (a local distro kernel tree).
 - Do **not** copy TBS's own `dvb-usb.h` in: it has extra fields (`fe2`) that
   break the ABI against mainline.
 
