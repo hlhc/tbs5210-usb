@@ -37,7 +37,10 @@ static int r850_rd(struct r850_priv *priv,u8 reg, u8 *buf,u8 len)
 static int r850_wrm(struct r850_priv *priv,u8 reg, u8 *val,u8 len)
 {
 	int ret;
-	u8 buf[len + 1];
+	u8 buf[R850_REG_NUM + 2];
+
+	if (len + 1 > sizeof(buf))
+		return -EINVAL;
 
 	memcpy(&buf[1], val, len);
 	buf[0] = reg;
