@@ -62,7 +62,7 @@ static int r850_wr(struct r850_priv *priv,u8 reg, u8 val)
 {
 	return r850_wrm(priv,reg,&val,1);
 }
-struct R850_Freq_Info_Type R850_Freq_Sel(u32 LO_freq, u32 RF_freq, enum R850_Standard_Type R850_Standard)
+static struct R850_Freq_Info_Type R850_Freq_Sel(u32 LO_freq, u32 RF_freq, enum R850_Standard_Type R850_Standard)
 {
 	struct R850_Freq_Info_Type R850_Freq_Info;
 
@@ -266,7 +266,7 @@ struct R850_Freq_Info_Type R850_Freq_Sel(u32 LO_freq, u32 RF_freq, enum R850_Sta
 
 }
 
-struct R850_SysFreq_Info_Type R850_SysFreq_NrbDetOn_Sel(enum R850_Standard_Type R850_Standard,u32 RF_freq)
+static struct R850_SysFreq_Info_Type R850_SysFreq_NrbDetOn_Sel(enum R850_Standard_Type R850_Standard,u32 RF_freq)
 {
 
 	struct R850_SysFreq_Info_Type R850_SysFreq_Info;
@@ -452,7 +452,7 @@ struct R850_SysFreq_Info_Type R850_SysFreq_NrbDetOn_Sel(enum R850_Standard_Type 
 //        IMR_Result_Data: result
 // output: TRUE or FALSE
 //-----------------------------------------------------------------------------------/
-R850_ErrCode R850_Muti_Read( struct r850_priv*priv, u8* IMR_Result_Data) //ok
+static R850_ErrCode R850_Muti_Read( struct r850_priv*priv, u8* IMR_Result_Data) //ok
 {
 	int ret = 0;
 	u8 buf[2];
@@ -469,7 +469,7 @@ R850_ErrCode R850_Muti_Read( struct r850_priv*priv, u8* IMR_Result_Data) //ok
 
 	return R850_Success;
 }
-R850_ErrCode R850_SetXtalCap(struct r850_priv *priv,u8 u8XtalCap)
+static R850_ErrCode R850_SetXtalCap(struct r850_priv *priv,u8 u8XtalCap)
 {
 	u8 XtalCap;
 	u8 Capx;
@@ -503,7 +503,7 @@ R850_ErrCode R850_SetXtalCap(struct r850_priv *priv,u8 u8XtalCap)
 	return R850_Success;
 }
 
-R850_ErrCode R850_SetXtalCap_No_Write(struct r850_priv *priv,u8 u8XtalCap)
+static R850_ErrCode R850_SetXtalCap_No_Write(struct r850_priv *priv,u8 u8XtalCap)
 {
 	u8 XtalCap;
 	u8 Capx;
@@ -538,7 +538,7 @@ R850_ErrCode R850_SetXtalCap_No_Write(struct r850_priv *priv,u8 u8XtalCap)
 2:gm (16MHz)
 3:off
 */
-R850_ErrCode R850_Set_XTAL_GM(struct r850_priv *priv,u8 xtal_gm)
+static R850_ErrCode R850_Set_XTAL_GM(struct r850_priv *priv,u8 xtal_gm)
 {
 	// Set Xtal gm  R34[7:6]
 
@@ -559,7 +559,7 @@ R850_ErrCode R850_Set_XTAL_GM(struct r850_priv *priv,u8 xtal_gm)
 	XTAL_CHECK_SIZE
 };
 */
-R850_ErrCode R850_SetXtalPW( struct r850_priv *priv,u8 u8Xtalpw)
+static R850_ErrCode R850_SetXtalPW( struct r850_priv *priv,u8 u8Xtalpw)
 {
 	u8 Xtal_power;
 
@@ -573,7 +573,7 @@ R850_ErrCode R850_SetXtalPW( struct r850_priv *priv,u8 u8Xtalpw)
 	return R850_Success;
 }
 
-R850_ErrCode R850_PLL(struct r850_priv*priv, u32 LO_Freq, enum R850_Standard_Type R850_Standard)//ok
+static R850_ErrCode R850_PLL(struct r850_priv*priv, u32 LO_Freq, enum R850_Standard_Type R850_Standard)//ok
 {
 	u8  MixDiv = 2;
 	u8  DivBuf = 0;
@@ -984,7 +984,7 @@ R850_ErrCode R850_PLL(struct r850_priv*priv, u32 LO_Freq, enum R850_Standard_Typ
 }
 
 
-R850_ErrCode R850_MUX( struct r850_priv *priv ,u32 LO_KHz, u32 RF_KHz, enum R850_Standard_Type R850_Standard)
+static R850_ErrCode R850_MUX( struct r850_priv *priv ,u32 LO_KHz, u32 RF_KHz, enum R850_Standard_Type R850_Standard)
 {
 	u8 Reg_IMR_Gain   = 0;
 	u8 Reg_IMR_Phase  = 0;
@@ -1070,7 +1070,7 @@ R850_ErrCode R850_MUX( struct r850_priv *priv ,u32 LO_KHz, u32 RF_KHz, enum R850
 // input: CorArry: three IMR data array
 // output: TRUE or FALSE
 //-----------------------------------------------------------------------------------/
-R850_ErrCode R850_CompreCor(struct R850_SectType* CorArry)
+static R850_ErrCode R850_CompreCor(struct R850_SectType* CorArry)
 {
 	u8 CompCunt = 0;
 	struct R850_SectType CorTemp;
@@ -1097,7 +1097,7 @@ R850_ErrCode R850_CompreCor(struct R850_SectType* CorArry)
 //        Pace: gain or phase register
 // output: TRUE or FALSE
 //-------------------------------------------------------------------------------------//
-R850_ErrCode R850_CompreStep(struct r850_priv*priv,  struct R850_SectType* StepArry, u8 Pace)
+static R850_ErrCode R850_CompreStep(struct r850_priv*priv,  struct R850_SectType* StepArry, u8 Pace)
 {
 	struct R850_SectType StepTemp;
 
@@ -1148,7 +1148,7 @@ R850_ErrCode R850_CompreStep(struct r850_priv*priv,  struct R850_SectType* StepA
 //        CompareTree: 3 IMR trace and results
 // output: TREU or FALSE
 //--------------------------------------------------------------------------------------------
-R850_ErrCode R850_IQ_Tree( struct r850_priv *priv,u8 FixPot, u8 FlucPot, u8 PotReg, struct R850_SectType* CompareTree)
+static R850_ErrCode R850_IQ_Tree( struct r850_priv *priv,u8 FixPot, u8 FlucPot, u8 PotReg, struct R850_SectType* CompareTree)
 {
 	u8 TreeCunt  = 0;
 	u8 PntReg = 0;
@@ -1210,7 +1210,7 @@ R850_ErrCode R850_IQ_Tree( struct r850_priv *priv,u8 FixPot, u8 FlucPot, u8 PotR
 	return R850_Success;
 }
 
-R850_ErrCode R850_IQ_Tree5(struct r850_priv*priv,  u8 FixPot, u8 FlucPot, u8 PotReg, struct R850_SectType* CompareTree)
+static R850_ErrCode R850_IQ_Tree5(struct r850_priv*priv,  u8 FixPot, u8 FlucPot, u8 PotReg, struct R850_SectType* CompareTree)
 {
 	u8 TreeCunt  = 0;
 	u8 TreeTimes = 5;
@@ -1353,7 +1353,7 @@ R850_ErrCode R850_IQ_Tree5(struct r850_priv*priv,  u8 FixPot, u8 FlucPot, u8 Pot
 	return R850_Success;
 }
 
-R850_ErrCode R850_Section(struct r850_priv*priv,  struct R850_SectType* IQ_Pont)
+static R850_ErrCode R850_Section(struct r850_priv*priv,  struct R850_SectType* IQ_Pont)
 {
 	struct R850_SectType Compare_IQ[3];
 	struct R850_SectType Compare_Bet[3];
@@ -1417,7 +1417,7 @@ R850_ErrCode R850_Section(struct r850_priv*priv,  struct R850_SectType* IQ_Pont)
 
 	return R850_Success;
 }
-R850_ErrCode R850_IMR_Iqcap(struct r850_priv*priv, struct R850_SectType* IQ_Point)
+static R850_ErrCode R850_IMR_Iqcap(struct r850_priv*priv, struct R850_SectType* IQ_Point)
 {
 	struct R850_SectType Compare_Temp;
 	int i = 0;
@@ -1457,7 +1457,7 @@ R850_ErrCode R850_IMR_Iqcap(struct r850_priv*priv, struct R850_SectType* IQ_Poin
 	return R850_Success;
 }
 
-R850_ErrCode R850_IMR_Cross( struct r850_priv*priv,struct R850_SectType* IQ_Pont, u8* X_Direct)
+static R850_ErrCode R850_IMR_Cross( struct r850_priv*priv,struct R850_SectType* IQ_Pont, u8* X_Direct)
 {
 
 	struct R850_SectType Compare_Cross[9]; //(0,0)(0,Q-1)(0,I-1)(Q-1,0)(I-1,0)+(0,Q-2)(0,I-2)(Q-2,0)(I-2,0)
@@ -1625,7 +1625,7 @@ R850_ErrCode R850_IMR_Cross( struct r850_priv*priv,struct R850_SectType* IQ_Pont
 }
 
 
-R850_ErrCode R850_IQ( struct r850_priv*priv, struct R850_SectType* IQ_Pont)
+static R850_ErrCode R850_IQ( struct r850_priv*priv, struct R850_SectType* IQ_Pont)
 {
 	struct R850_SectType Compare_IQ[3];
 	u8   X_Direction;  // 1:X, 0:Y
@@ -1760,7 +1760,7 @@ R850_ErrCode R850_IQ( struct r850_priv*priv, struct R850_SectType* IQ_Pont)
 //                 will be updated to final best point
 // output: TRUE or FALSE
 //----------------------------------------------------------------------------------------//
-R850_ErrCode R850_F_IMR(struct r850_priv *priv, struct R850_SectType* IQ_Pont)
+static R850_ErrCode R850_F_IMR(struct r850_priv *priv, struct R850_SectType* IQ_Pont)
 {
 	struct R850_SectType Compare_IQ[3];
 	struct R850_SectType Compare_Bet[3];
@@ -1839,7 +1839,7 @@ R850_ErrCode R850_F_IMR(struct r850_priv *priv, struct R850_SectType* IQ_Pont)
 
 
 
-R850_ErrCode R850_InitReg(struct r850_priv *priv)//ok
+static R850_ErrCode R850_InitReg(struct r850_priv *priv)//ok
 {
 	u8 InitArrayCunt = 0;
 
@@ -1948,7 +1948,7 @@ R850_ErrCode R850_InitReg(struct r850_priv *priv)//ok
 	return R850_Success;
 }
 
-R850_ErrCode R850_Cal_Prepare(struct r850_priv *priv,u8 u1CalFlag)
+static R850_ErrCode R850_Cal_Prepare(struct r850_priv *priv,u8 u1CalFlag)
 {
 	//R850_Cal_Info_Type  Cal_Info;
 	u8   InitArrayCunt = 0;
@@ -2065,7 +2065,7 @@ R850_ErrCode R850_Cal_Prepare(struct r850_priv *priv,u8 u1CalFlag)
 }
 
 
-R850_ErrCode R850_IMR(struct r850_priv* priv, u8 IMR_MEM, u8 IM_Flag)
+static R850_ErrCode R850_IMR(struct r850_priv* priv, u8 IMR_MEM, u8 IM_Flag)
 {
 
 	//-------------------------------------------------------------------
@@ -2283,7 +2283,7 @@ R850_ErrCode R850_IMR(struct r850_priv* priv, u8 IMR_MEM, u8 IM_Flag)
 //  3rd parameter: output signal level (dBm*1000)                    //
 //  4th parameter: output RF max gain indicator (1:max gain)    //
 //-----------------------------------------------------------------------//
-R850_ErrCode R850_GetRfRssi( struct r850_priv*priv,u32 RF_Freq_Khz, enum R850_Standard_Type RT_Standard, s32 *RfLevelDbm, u8 *fgRfMaxGain)
+static R850_ErrCode R850_GetRfRssi( struct r850_priv*priv,u32 RF_Freq_Khz, enum R850_Standard_Type RT_Standard, s32 *RfLevelDbm, u8 *fgRfMaxGain)
 {
 	//u8 bPulseFlag;
 	struct R850_RF_Gain_Info rf_gain_info;
@@ -2455,7 +2455,7 @@ R850_ErrCode R850_GetRfRssi( struct r850_priv*priv,u32 RF_Freq_Khz, enum R850_St
 //  R850_GetIfRssi( ): Get IF VGA GAIN                                   //
 //  1st parameter: return IF VGA Gain     (dB*100)                       //
 //-----------------------------------------------------------------------//
-R850_ErrCode R850_GetIfRssi(struct r850_priv*priv,s32 *VgaGain)
+static R850_ErrCode R850_GetIfRssi(struct r850_priv*priv,s32 *VgaGain)
 {
 	u8   adc_read;
 	u8 buf[2];
@@ -2500,7 +2500,7 @@ R850_ErrCode R850_GetIfRssi(struct r850_priv*priv,s32 *VgaGain)
 //  2nd parameter: input Standard                                           //
 //  3rd parameter: return signal level indicator (dBm)               //
 //-----------------------------------------------------------------------//
-R850_ErrCode R850_GetTotalRssi( struct r850_priv*priv, u32 RF_Freq_Khz, enum R850_Standard_Type RT_Standard, s32 *RssiDbm)
+static R850_ErrCode R850_GetTotalRssi( struct r850_priv*priv, u32 RF_Freq_Khz, enum R850_Standard_Type RT_Standard, s32 *RssiDbm)
 {
 	s32   rf_rssi;
 	s32   if_rssi;
@@ -2528,7 +2528,7 @@ R850_ErrCode R850_GetTotalRssi( struct r850_priv*priv, u32 RF_Freq_Khz, enum R85
 	return R850_Success;
 }
 
-u8  R850_Filt_Cal_ADC(struct r850_priv *priv, u32 IF_Freq, u8 R850_BW, u8 FilCal_Gap)
+static u8  R850_Filt_Cal_ADC(struct r850_priv *priv, u32 IF_Freq, u8 R850_BW, u8 FilCal_Gap)
 {
 	u8     u1FilterCodeResult = 0;
 	u8     u1FilterCode = 0;
@@ -2700,7 +2700,7 @@ u8  R850_Filt_Cal_ADC(struct r850_priv *priv, u32 IF_Freq, u8 R850_BW, u8 FilCal
 
 }
 
-R850_ErrCode R850_SetStandard(struct r850_priv *priv, enum R850_Standard_Type RT_Standard)
+static R850_ErrCode R850_SetStandard(struct r850_priv *priv, enum R850_Standard_Type RT_Standard)
 {
 	u8 u1FilCalGap = 16;
 
@@ -2762,7 +2762,7 @@ R850_ErrCode R850_SetStandard(struct r850_priv *priv, enum R850_Standard_Type RT
 
 
 
-R850_ErrCode R850_SetFrequency(struct r850_priv *priv, struct R850_Set_Info R850_INFO) //Write Multi byte
+static R850_ErrCode R850_SetFrequency(struct r850_priv *priv, struct R850_Set_Info R850_INFO) //Write Multi byte
 {
 
 	u32	LO_KHz;
