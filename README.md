@@ -17,7 +17,7 @@ builds on 6.x within the range supported by the sources.
 - USB ID: `734c:5210`
 - demodulator: **GX1503** (NationalChip, DTMB / GB20600-2006), i2c `0x30`
 - tuner: **Rafael Micro R850**
-- firmware: `dvb-usb-id5210.fw`
+- firmware: `dvb-usb-id5210.fw` (USB bridge), `dvb-demod-gx1503B.fw` (GX1503 demod)
 
 ## Modules
 
@@ -85,10 +85,11 @@ kernels that don't support the external-module output directory (`MO=`) they
 fall back in-tree. Use `make BUILD= ...` to always build in-tree (DKMS does
 this).
 
-Install the firmware:
+Install the firmware (both blobs are required — the USB bridge firmware is
+loaded by `dvb-usb-tbs5210`, the demod firmware by `gx1503`):
 
 ```sh
-sudo cp firmware/dvb-usb-id5210.fw /lib/firmware/
+sudo cp firmware/dvb-usb-id5210.fw firmware/dvb-demod-gx1503B.fw /lib/firmware/
 ```
 
 then replug the box (or reboot).
@@ -231,6 +232,12 @@ own `dvb-core`/`dvb-usb` instead of shipping the TBS media tree.
 
 Note: TBS5210 is **not** in the `linux_media` `latest` branch — it only
 appears in the beta package.
+
+The two vendor firmware blobs are tracked in `firmware/`:
+`dvb-usb-id5210.fw` (USB bridge) and `dvb-demod-gx1503B.fw` (GX1503 demod,
+`sha256 e7d98dd185c37b24a1fd5793ab846a6c8ce26e163ab38bcb21a2efc5e9bacfca`).
+`gx1503_init()` requests the demod blob with `request_firmware()`; without it
+in `/lib/firmware` the request fails and the frontend never becomes active.
 
 ## License
 

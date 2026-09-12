@@ -16,7 +16,7 @@ operator guide; this file is the agent-onboarding summary.
   `build/r850.ko` (Kbuild `MO=`; source tree stays clean). `make BUILD= ...`
   builds in-tree; DKMS does this so its module discovery still works.
 - `sudo make install` (installs to `/lib/modules/$(uname -r)/extra`, runs `depmod`).
-- `sudo cp firmware/dvb-usb-id5210.fw /lib/firmware/`.
+- `sudo cp firmware/dvb-usb-id5210.fw firmware/dvb-demod-gx1503B.fw /lib/firmware/`.
 - Override the kernel build dir with `KDIR=`; the `check` target validates it
   and prints distro-specific install hints.
 
@@ -42,8 +42,9 @@ operator guide; this file is the agent-onboarding summary.
 - Do not introduce TBS-private core changes (no `DTV_MODCODE`, `FE_ECP3FW_*`,
   `VIDIOC_TBS_*`); this device uses only stable mainline APIs.
 - License **GPL-2.0**, kernel-style, SPDX on every file; keep
-  `MODULE_LICENSE("GPL")`. `firmware/dvb-usb-id5210.fw` is a required vendor
-  blob — tracked on purpose, don't delete.
+  `MODULE_LICENSE("GPL")`. `firmware/dvb-usb-id5210.fw` and
+  `firmware/dvb-demod-gx1503B.fw` are required vendor blobs — tracked on
+  purpose, don't delete.
 - `gx1503.c`/`r850.c` contain `LINUX_VERSION_CODE` guards for kernel API
   changes (probe/remove/i2c-mux). Keep them.
 
