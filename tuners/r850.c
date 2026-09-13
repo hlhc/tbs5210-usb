@@ -3340,8 +3340,10 @@ struct dvb_frontend *r850_attach(struct dvb_frontend *fe,
 	priv->inited = 0;
 	
 	ret = r850_rd(priv,0x00,buf,48);
-	if(ret!=0)
+	if(ret!=0) {
+		kfree(priv);
 		return NULL;
+	}
 	
 	dev_info(&priv->i2c->dev,
 		"%s: Rafael R850 successfully attached,id is 0x%x\n",
