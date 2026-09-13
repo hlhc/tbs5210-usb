@@ -96,8 +96,11 @@ static int gx1503_init(struct dvb_frontend *fe)
 	
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
 			fw_name);
-	for(i = 0;i<fw->size;i++)
-		 ret = regmap_write(dev->regmap,0xF6,fw->data[i]);
+	for(i = 0;i<fw->size;i++) {
+		ret = regmap_write(dev->regmap,0xF6,fw->data[i]);
+		if (ret)
+			goto err_release_firmware;
+	}
 
 	release_firmware(fw);
 	
@@ -105,6 +108,8 @@ static int gx1503_init(struct dvb_frontend *fe)
 	}
 
 	ret = regmap_read(dev->regmap,0xf7,&temp);
+	if(ret)
+		goto err;
 	ret = regmap_write(dev->regmap,0xf7,temp|0x10);
 	if(ret)
 		goto err;
