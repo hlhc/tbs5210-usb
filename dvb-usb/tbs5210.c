@@ -187,6 +187,13 @@ static int tbs5210_frontend_attach(struct dvb_usb_adapter *adap)
 	client_demod = i2c_new_client_device(&d->i2c_adap, &info);
 	if (!i2c_client_has_driver(client_demod)){
 	    printk("new client_demod is failed!");
+		/*
+		 * Do not leave an unbound client behind: its platform_data
+		 * points at gx1503_config on this stack frame, and a later
+		 * gx1503 module load would bind it and write through it.
+		 */
+		if (!IS_ERR_OR_NULL(client_demod))
+			i2c_unregister_device(client_demod);
 		return -ENODEV;
         }
 	if (!try_module_get(client_demod->dev.driver->owner)) {
