@@ -480,6 +480,36 @@ err:
 	return ret;
 }
 
+/*
+ * The demodulator tracks the channel continuously and re-acquires on its
+ * own after a disturbance, so use DVBFE_ALGO_HW: dvb-core then calls
+ * tune() with re_tune only for a new FE_SET_FRONTEND and otherwise just
+ * polls status.  The default software zigzag re-tunes on every lock loss
+ * (and repeatedly during acquisition), each set_frontend() resetting the
+ * demod and restarting acquisition, which stretches a short disturbance
+ * into a much longer outage.
+ */
+static enum dvbfe_algo gx1503_get_frontend_algo(struct dvb_frontend *fe)
+{
+	return DVBFE_ALGO_HW;
+}
+
+static int gx1503_tune(struct dvb_frontend *fe, bool re_tune,
+		       unsigned int mode_flags, unsigned int *delay,
+		       enum fe_status *status)
+{
+	int ret;
+
+	if (re_tune) {
+		ret = gx1503_set_frontend(fe);
+		if (ret)
+			return ret;
+	}
+
+	*delay = HZ / 5;
+	return gx1503_read_status(fe, status);
+}
+
 static const struct dvb_frontend_ops gx1503_ops = {
 		.delsys = {SYS_DVBT},
 		.info = {
@@ -491,11 +521,14 @@ static const struct dvb_frontend_ops gx1503_ops = {
 				FE_CAN_FEC_AUTO |
 				FE_CAN_QAM_AUTO |
                 FE_CAN_TRANSMISSION_MODE_AUTO |
-                FE_CAN_GUARD_INTERVAL_AUTO
+                FE_CAN_GUARD_INTERVAL_AUTO |
+				FE_CAN_RECOVER
 		},
 
 		.init    = gx1503_init,
 		.set_frontend = gx1503_set_frontend,
+		.get_frontend_algo = gx1503_get_frontend_algo,
+		.tune = gx1503_tune,
 		.read_status = gx1503_read_status,
 		.read_signal_strength = gx1503_read_strength,
 		.read_snr = gx1503_read_snr,
