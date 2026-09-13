@@ -266,60 +266,47 @@ static struct usb_device_id tbs5210_table[] = {
 MODULE_DEVICE_TABLE(usb, tbs5210_table);
 
 static int tbs5210_load_firmware(struct usb_device *dev,
-			const struct firmware *frmwr)
+			const struct firmware *fw)
 {
-	u8 *b, *p;
-	int ret = 0, i;
+	u8 *p;
+	int ret = 0;
+	size_t i, len;
 	u8 reset;
-	const struct firmware *fw;
-	switch (dev->descriptor.idProduct) {
-	case 0x5210:
-		ret = request_firmware(&fw, tbs5210_properties.firmware, &dev->dev);
-		if (ret != 0) {
-			err("did not find the firmware file. (%s) "
-			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", tbs5210_properties.firmware);
-			return ret;
-		}
-		break;
-	default:
-		fw = frmwr;
-		break;
-	}
+
 	info("start downloading TBS5210 firmware");
-	p = kmalloc(fw->size, GFP_KERNEL);
+	p = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
 	reset = 1;
 	/*stop the CPU*/
 	tbs5210_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1, TBS5210_WRITE_MSG);
 	tbs5210_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1, TBS5210_WRITE_MSG);
 
-	if (p != NULL) {
-		memcpy(p, fw->data, fw->size);
-		for (i = 0; i < fw->size; i += 0x40) {
-			b = (u8 *) p + i;
-			if (tbs5210_op_rw(dev, 0xa0, i, 0, b , 0x40,
-					TBS5210_WRITE_MSG) != 0x40) {
-				err("error while transferring firmware");
-				ret = -EINVAL;
-				break;
-			}
-		}
-		/* restart the CPU */
-		reset = 0;
-		if (ret || tbs5210_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
-					TBS5210_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
+	for (i = 0; i < fw->size; i += len) {
+		len = min_t(size_t, 0x40, fw->size - i);
+		if (tbs5210_op_rw(dev, 0xa0, i, 0, p + i, len,
+				TBS5210_WRITE_MSG) != len) {
+			err("error while transferring firmware");
 			ret = -EINVAL;
+			break;
 		}
-		if (ret || tbs5210_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
-					TBS5210_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
-			ret = -EINVAL;
-		}
-
-		msleep(100);
-		kfree(p);
 	}
+	/* restart the CPU */
+	reset = 0;
+	if (ret || tbs5210_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
+				TBS5210_WRITE_MSG) != 1) {
+		err("could not restart the USB controller CPU.");
+		ret = -EINVAL;
+	}
+	if (ret || tbs5210_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
+				TBS5210_WRITE_MSG) != 1) {
+		err("could not restart the USB controller CPU.");
+		ret = -EINVAL;
+	}
+
+	msleep(100);
+	kfree(p);
 	return ret;
 }
 
