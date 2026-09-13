@@ -388,7 +388,7 @@ static int gx1503_read_snr(struct dvb_frontend * fe,u16 * snr)
 	int Noise_pow;
 	int gi_mode;
 	int gi_len[3]   = {420,595,945};
-	int snr_mod[3]  = {2.6,0,2.2};
+	int snr_mod10[3] = {26, 0, 22};	/* tenths of a dB */
 	int temp;
 
 	regmap_read(dev->regmap,H_POW_L,&Hl);
@@ -407,16 +407,17 @@ static int gx1503_read_snr(struct dvb_frontend * fe,u16 * snr)
 	   Noise_pow = 1;
 	
 	log_data = H_pow * 2048 / gi_len[gi_mode] * 64 / Noise_pow ;
-	SNR = GX1503_100Log(log_data)/10 - snr_mod[gi_mode] - 10;	
-	
+	/* GX1503_100Log() returns 100*log10(); work in tenths of a dB */
+	SNR = GX1503_100Log(log_data) - snr_mod10[gi_mode] - 100;
+
 	if(SNR <= 0)
 		SNR = 0;
 		
 	c->cnr.len = 2;
 	c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-	c->cnr.stat[0].svalue = (s64)SNR*1000;
+	c->cnr.stat[0].svalue = (s64)SNR*100;
 	c->cnr.stat[1].scale = FE_SCALE_RELATIVE;
-	c->cnr.stat[1].uvalue = (s64)SNR*328;
+	c->cnr.stat[1].uvalue = (s64)SNR*328/10;
 		
 	*snr = c->cnr.stat[1].uvalue;
 
