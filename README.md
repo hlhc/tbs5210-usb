@@ -295,11 +295,52 @@ own `dvb-core`/`dvb-usb` instead of shipping the TBS media tree.
 Note: TBS5210 is **not** in the `linux_media` `latest` branch — it only
 appears in the beta package.
 
-The two vendor firmware blobs are tracked in `firmware/`:
-`dvb-usb-id5210.fw` (USB bridge) and `dvb-demod-gx1503B.fw` (GX1503 demod,
-`sha256 e7d98dd185c37b24a1fd5793ab846a6c8ce26e163ab38bcb21a2efc5e9bacfca`).
-`gx1503_init()` requests the demod blob with `request_firmware()`; without it
-in `/lib/firmware` the request fails and the frontend never becomes active.
+### Differences from the TBS sources
+
+The driver is no longer identical to TBS's. Every change below is a
+separate commit on `main`; the register tables are the vendor's unless
+stated.
+
+| Area | Change | Why | Behaviour |
+|---|---|---|---|
+| `gx1503` | `DVBFE_ALGO_HW` + `tune()` instead of dvb-core software zigzag | dvb-core re-tuned at f, f±step on any lock loss; each `set_frontend()` hard-resets the demod and restarts acquisition | An outage lasts as long as the disturbance plus one re-acquisition, instead of a retune loop |
+| `gx1503` | **Demod MCU halted once locked** (`mcu_halt`, default on) | The firmware blob is an 8051 supervisor that periodically switches the channel estimator to a short "fast" profile; on a multipath channel that excursion collapses SNR and drops sync | The steady profile is held; the MCU is restarted for every tune and if lock stays lost. `mcu_halt=0` restores the vendor behaviour |
+| `gx1503` | `FE_CAN_RECOVER` advertised | Matches the above | Informational |
+| `gx1503` | CNR reported in millidB (`SNR*1000`, was `*250`) | DVBv5 `FE_SCALE_DECIBEL` is 0.001 dB | Applications reading the decibel statistic see the real value |
+| `gx1503` | Guard-interval SNR offset kept fractional | `int snr_mod[] = {2.6, 0, 2.2}` truncated to `{2, 0, 2}` | Reported SNR follows the vendor formula |
+| `gx1503` | `delivery_system` no longer overwritten with `SYS_DTMB` | `ops.delsys` is `{SYS_DVBT}`; re-setting DTMB failed with `-EINVAL` | Property round-trips work; tuning unchanged |
+| `gx1503` | Firmware upload checks every write | Errors were discarded and `fw_loaded`/`active` set anyway | A failed upload now fails `init()` instead of running corrupt microcode |
+| `gx1503` | `cfg_int_parm = 8*128/BW` (was `8/BW*128`) | Integer division gave 128 for every bandwidth | 6/7 MHz get 170/146; 8 MHz unchanged (only 8 MHz exercised) |
+| `gx1503` | `imp_thres` module parameter (reg 0xC5) | Tuning surface for the impulse-noise threshold | No change unless set |
+| `r850` | 15 module parameters for the DTMB AGC table (`force_pulse`, `nat_cain`, `rf_gain_limit`, `mixer_gain_limit`, `lna_top`, `rf_top`, `mixer_top`, `dis_mode`, `agc_clk`, `loop_through`, `pulse_hys`, `lna_dis`, `na_pwr_det`, `nrb_bw_hpf`, `img_gain`) | Lets a different installation be measured instead of guessed at | No change unless set; defaults are the vendor values |
+| `r850` | `priv` freed when the attach-time register read fails | Leak | None in normal operation |
+| `r850` | `Lna_Acc_Gain_offset[]` index clamped | Out-of-bounds read below 50 MHz / above 905 MHz | None in the 100–858 MHz range |
+| `r850` | `r850_wrm()` fixed buffer instead of VLA; helpers `static` | Kernel coding rules | None |
+| `tbs5210` | Module reference on `gx1503` released at disconnect | `try_module_get()` was never balanced (cleanup was `#if 0`) | `gx1503` can be unloaded; unplug/replug no longer leaks |
+| `tbs5210` | I2C bridge propagates USB errors, short reads → `-EREMOTEIO`, unknown addresses → `-EOPNOTSUPP` | Every error was reported as success and an uninitialised buffer copied to the caller | Failed transfers now fail; demod/tuner error paths become reachable |
+| `tbs5210` | I2C direction from `I2C_M_RD` instead of `flags == 0` | i2c-dev messages carry `I2C_M_DMA_SAFE`, so every userspace write was executed as a read | `/dev/i2c-N` writes work; kernel-side traffic unchanged |
+| `tbs5210` | I2C message length bounds (0 and > 58 bytes rejected) | Stack buffer overrun | None for the demod/tuner |
+| `tbs5210` | Firmware loader uses the blob passed by dvb-usb, `-ENOMEM` before touching the device, last chunk clamped | Blob requested twice and leaked; OOM returned success with the CPU halted; fixed 64-byte chunks read past the buffer | Same upload sequence; no leak |
+| `tbs5210` | Orphan demod i2c client unregistered if `gx1503` does not bind | Its `platform_data` pointed at a dead stack frame | A later `modprobe gx1503` no longer writes through it |
+| `firmware/` | `dvb-demod-gx1503B.fw` tracked | TBS package shipped only the bridge blob | Frontend activates |
+| build | Kbuild/DKMS against distro `dvb-core`/`dvb-usb`, vendored `vendor/dvb-usb.h` | No TBS media tree | Same kernel APIs |
+
+Not changed from TBS: every R850 and GX1503 register table and init
+sequence, the I2C protocol, the firmware blobs, `SYS_DVBT` as the
+advertised delivery system.
+
+### Reverse engineering of the demod firmware
+
+NationalChip publishes no datasheet or register map for the GX1503B, and
+TBS ships the demod blob without documentation. To understand the
+periodic sync loss, the blob was disassembled (it is an SDCC-compiled
+8051 program, not DSP microcode) and its register writes were observed
+live through the bridge's I2C adapter. The `mcu_halt` change and the
+register semantics it relies on (`0xF7` bit 4 as the MCU run bit,
+`0x99` as the profile indicator) come from that analysis, not from any
+specification. They were validated on one TBS5210 in one installation;
+there is **no guarantee** they hold on other units, firmware revisions
+or signals. `mcu_halt=0` restores the vendor behaviour if in doubt.
 
 ## License
 
