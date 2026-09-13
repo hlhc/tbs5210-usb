@@ -6,6 +6,11 @@
  */
 #include "gx1503_priv.h"
 
+/* Impulse-noise detector threshold (reg 0xC5); -1 keeps the vendor value. */
+static int imp_thres = -1;
+module_param(imp_thres, int, 0444);
+MODULE_PARM_DESC(imp_thres, "Impulse-noise threshold 0..255 (default: 30)");
+
 static int GX1503_100Log(int iNumber_N)
 {
 	int iLeftMoveCount_M = 0;
@@ -303,7 +308,8 @@ static int gx1503_set_frontend(struct dvb_frontend *fe)
 
 	//init the inner register
 	GX1503_WriteRegWithMask(client,0x90,0,7,7 	);// constellation valid
-	GX1503_WriteRegWithMask(client,0xC5,30,7,0	);// cfg_imp_thres
+	GX1503_WriteRegWithMask(client,0xC5,
+		(imp_thres >= 0 && imp_thres <= 255) ? imp_thres : 30,7,0);// cfg_imp_thres
 	GX1503_WriteRegWithMask(client,0x9D,9,3,0 	);// cfg_path_delta
 	GX1503_WriteRegWithMask(client,0x93,1,6,6 	);// cfg_h_det
 	GX1503_WriteRegWithMask(client,0x9E,3,3,2 	);// cfg_noise_sel

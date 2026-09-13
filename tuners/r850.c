@@ -8,6 +8,77 @@
 #include "r850.h"
 #include "r850_priv.h"
 
+/*
+ * AGC / front-end tuning overrides.  -1 keeps the vendor DTMB table value;
+ * anything else replaces it.  Exposed so the front end can be adjusted for a
+ * given signal without rebuilding.  See R850_SysFreq_NrbDetOn_Sel().
+ */
+static int force_pulse = -1;
+module_param(force_pulse, int, 0444);
+MODULE_PARM_DESC(force_pulse, "Pulse-noise gain cut R46[5]: 0=off, 1=auto (table: 1)");
+
+static int nat_cain = -1;
+module_param(nat_cain, int, 0444);
+MODULE_PARM_DESC(nat_cain, "Gain floor on pulse R31[5:4]: 0=max-17dB 1=max-11dB 2=max-6dB 3=max (table: 2)");
+
+static int rf_gain_limit = -1;
+module_param(rf_gain_limit, int, 0444);
+MODULE_PARM_DESC(rf_gain_limit, "RF buffer max gain: 0=15 1=11 2=13 3=9 (table: 0)");
+
+static int mixer_gain_limit = -1;
+module_param(mixer_gain_limit, int, 0444);
+MODULE_PARM_DESC(mixer_gain_limit, "Mixer max gain R22[7:6]: 0=6 1=8 2=10 3=12 (table: 1)");
+
+static int lna_top = -1;
+module_param(lna_top, int, 0444);
+MODULE_PARM_DESC(lna_top, "LNA AGC take-over point 0..7 (table: 4)");
+
+static int rf_top = -1;
+module_param(rf_top, int, 0444);
+MODULE_PARM_DESC(rf_top, "RF buffer AGC take-over point 0..7 (table: 4)");
+
+static int mixer_top = -1;
+module_param(mixer_top, int, 0444);
+MODULE_PARM_DESC(mixer_top, "Mixer AGC take-over point 0..15 (table: 9)");
+
+static int dis_mode = -1;
+module_param(dis_mode, int, 0444);
+MODULE_PARM_DESC(dis_mode, "LNA/RF AGC discharge: 0=auto 1=fast+slow 2=slow 3=LNA slow 4=RF slow (table: 1)");
+
+static int agc_clk = -1;
+module_param(agc_clk, int, 0444);
+MODULE_PARM_DESC(agc_clk, "AGC loop clock R47[3:2]: 0=1kHz 1=512Hz 2=4kHz 3=64Hz (default: 1)");
+
+static int pulse_hys = -1;
+module_param(pulse_hys, int, 0444);
+MODULE_PARM_DESC(pulse_hys, "Pulse detector hysteresis R26[1:0]: 0=1.0V 1=0.8V 2=0.6V 3=0.4V (table: 1)");
+
+static int lna_dis = -1;
+module_param(lna_dis, int, 0444);
+MODULE_PARM_DESC(lna_dis, "LNA slow/fast discharge current R44[7:4] 0..15 (table: 9)");
+
+static int na_pwr_det = -1;
+module_param(na_pwr_det, int, 0444);
+MODULE_PARM_DESC(na_pwr_det, "NA power detector R10[6]: 0=off 1=on (table: 0)");
+
+static int nrb_bw_hpf = -1;
+module_param(nrb_bw_hpf, int, 0444);
+MODULE_PARM_DESC(nrb_bw_hpf, "NRB HPF bandwidth R26[3:2] 0..3 (table: 2 above 340 MHz)");
+
+static int img_gain = -1;
+module_param(img_gain, int, 0444);
+MODULE_PARM_DESC(img_gain, "Image gain 0..3 (default: 2)");
+
+static int loop_through = -1;
+module_param(loop_through, int, 0444);
+MODULE_PARM_DESC(loop_through, "Active loop-through buffer: 0=off, 1=on (default: 1)");
+
+#define R850_OVERRIDE(field, param, max)				\
+	do {								\
+		if ((param) >= 0 && (param) <= (max))			\
+			(field) = (param);				\
+	} while (0)
+
 static int r850_rd(struct r850_priv *priv,u8 reg, u8 *buf,u8 len)
 {
 	int ret,i;
@@ -445,6 +516,19 @@ static struct R850_SysFreq_Info_Type R850_SysFreq_NrbDetOn_Sel(enum R850_Standar
 		R850_SysFreq_Info.FLG_CNT_CLK = 1;		//R47[7:6]	["0.25Sec"(0), "0.5Sec"(1), "1Sec"(2), "2Sec"(3)]
 		R850_SysFreq_Info.NATG_OFFSET =	0;		//R36[5:4]	["-6dB"(0), "-3dB"(1), "Normal"(2), "3dB"(3)]
 
+	/* module parameter overrides (see top of file) */
+	R850_OVERRIDE(R850_SysFreq_Info.FORCE_PULSE, force_pulse, 1);
+	R850_OVERRIDE(R850_SysFreq_Info.NAT_CAIN, nat_cain, 3);
+	R850_OVERRIDE(R850_SysFreq_Info.RF_GAIN_LIMIT, rf_gain_limit, 3);
+	R850_OVERRIDE(R850_SysFreq_Info.MIXER_GAIN_LIMIT, mixer_gain_limit, 3);
+	R850_OVERRIDE(R850_SysFreq_Info.LNA_TOP, lna_top, 7);
+	R850_OVERRIDE(R850_SysFreq_Info.RF_TOP, rf_top, 7);
+	R850_OVERRIDE(R850_SysFreq_Info.MIXER_TOP, mixer_top, 15);
+	R850_OVERRIDE(R850_SysFreq_Info.LNA_RF_DIS_MODE, dis_mode, 4);
+	R850_OVERRIDE(R850_SysFreq_Info.PULSE_HYS, pulse_hys, 3);
+	R850_OVERRIDE(R850_SysFreq_Info.LNA_DIS_SLOW_FAST, lna_dis, 15);
+	R850_OVERRIDE(R850_SysFreq_Info.NA_PWR_DET, na_pwr_det, 1);
+	R850_OVERRIDE(R850_SysFreq_Info.NRB_BW_HPF, nrb_bw_hpf, 3);
 
 	return R850_SysFreq_Info;
 
@@ -3080,6 +3164,8 @@ static int r850_init(struct dvb_frontend *fe)
 	priv->R850_Sys_Info.FILT_EXT_ENA=0;			 //R18[6] filter ext disable [off(0), on(1)]
 	priv->R850_Sys_Info.FILT_COMP=2;				 //R24[3:2] [0~3 ; input: "0~3"]
 	priv->R850_Sys_Info.AGC_CLK = 1;			//R47[3:2] 1k	[1kHz(0), 512Hz(1), 4kHz(2), 64Hz(3)]
+	R850_OVERRIDE(priv->R850_Sys_Info.AGC_CLK, agc_clk, 3);
+	R850_OVERRIDE(priv->R850_Sys_Info.IMG_GAIN, img_gain, 3);
 	priv->R850_Sys_Info.IMG_GAIN = 2; 		 ////MSB:R44[0] , LSB:R46[4]  highest	[lowest(0), high(1), low(2), highest(3)]
 
 	priv->R850_clock_out = 0;
@@ -3152,7 +3238,7 @@ static int r850_set_params(struct dvb_frontend *fe)
 		
 	tuner_parameters.RF_KHz = c->frequency /1000;
 
-	tuner_parameters.R850_LT=R850_LT_ON;
+	tuner_parameters.R850_LT = loop_through == 0 ? R850_LT_OFF : R850_LT_ON;
 	tuner_parameters.R850_ClkOutMode=R850_CLK_OUT_OFF;
 	tuner_parameters.R850_Standard = R850_DTMB_8M_IF_5M;
 	
