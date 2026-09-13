@@ -3165,8 +3165,8 @@ static int r850_init(struct dvb_frontend *fe)
 	priv->R850_Sys_Info.FILT_COMP=2;				 //R24[3:2] [0~3 ; input: "0~3"]
 	priv->R850_Sys_Info.AGC_CLK = 1;			//R47[3:2] 1k	[1kHz(0), 512Hz(1), 4kHz(2), 64Hz(3)]
 	R850_OVERRIDE(priv->R850_Sys_Info.AGC_CLK, agc_clk, 3);
-	R850_OVERRIDE(priv->R850_Sys_Info.IMG_GAIN, img_gain, 3);
 	priv->R850_Sys_Info.IMG_GAIN = 2; 		 ////MSB:R44[0] , LSB:R46[4]  highest	[lowest(0), high(1), low(2), highest(3)]
+	R850_OVERRIDE(priv->R850_Sys_Info.IMG_GAIN, img_gain, 3);
 
 	priv->R850_clock_out = 0;
 	priv->R850_IMR_Cal_Result = 0;
