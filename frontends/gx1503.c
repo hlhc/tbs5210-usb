@@ -173,7 +173,7 @@ static int GX1503_Set_BandWidth(struct i2c_client *client,int Band)
 	ret = regmap_write(dev->regmap,INT_FREQ_L,fs_L);
 	ret = regmap_write(dev->regmap,INT_FREQ_M,fs_M);
 	ret = regmap_write(dev->regmap,INT_FREQ_H,fs_H);
-	INT_PARM = (int)(8 / BW * 128);
+	INT_PARM = (int)(8 * 128 / BW);
 	ret = regmap_write(dev->regmap,cfg_int_parm,INT_PARM);
 	if(ret)
 		goto err;
