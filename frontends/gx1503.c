@@ -225,7 +225,6 @@ static int gx1503_set_frontend(struct dvb_frontend *fe)
 	}
 
 	if (fe->ops.tuner_ops.set_params) {
-		c->delivery_system = SYS_DTMB;
 		ret = fe->ops.tuner_ops.set_params(fe);
 		if (ret)
 			goto err;
