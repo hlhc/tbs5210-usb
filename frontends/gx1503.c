@@ -404,7 +404,7 @@ static int gx1503_read_snr(struct dvb_frontend * fe,u16 * snr)
 		
 	c->cnr.len = 2;
 	c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-	c->cnr.stat[0].svalue = (s64)SNR*250;
+	c->cnr.stat[0].svalue = (s64)SNR*1000;
 	c->cnr.stat[1].scale = FE_SCALE_RELATIVE;
 	c->cnr.stat[1].uvalue = (s64)SNR*328;
 		
