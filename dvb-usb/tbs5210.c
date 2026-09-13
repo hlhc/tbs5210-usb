@@ -352,19 +352,23 @@ static int tbs5210_probe(struct usb_interface *intf,
 
 static void tbs5210_disconnect(struct usb_interface *intf)
 {
-#if 0
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	struct tbs5210_state *st = d->priv;
-	struct i2c_client *client;
+	struct i2c_client *client = st->client_demod;
+	struct module *owner = NULL;
 
-	/* remove I2C client for demodulator */
-	client = st->client_demod;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-#endif
+	if (client && client->dev.driver)
+		owner = client->dev.driver->owner;
+
+	/*
+	 * dvb_usb_device_exit() unregisters the frontend, then deletes the
+	 * USB i2c adapter, which unregisters and frees the gx1503 client.
+	 * The dvb_frontend is embedded in the client's private data, so
+	 * that order is required; the client must not be touched afterwards.
+	 * Only the reference taken with try_module_get() at attach remains.
+	 */
 	dvb_usb_device_exit(intf);
+	module_put(owner);
 }
 
 static struct usb_driver tbs5210_driver = {
