@@ -97,7 +97,7 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 		switch (msg[0].addr) {
 		case 0x30:
 		case 0x7C:
-			if (msg[0].flags == 0) {
+			if (!(msg[0].flags & I2C_M_RD)) {
 				buf6[0] = msg[0].len+1;//lenth
 				buf6[1] = msg[0].addr<<1;//addr
 				for(i=0;i<msg[0].len;i++) {
