@@ -13,7 +13,10 @@
 #
 # For a distro kernel that carries patches, prefer the local-tree form (its
 # layout is what the running dvb-usb.ko was built with). Mainline REFs are a
-# convenience for unpatched kernels.
+# convenience for unpatched kernels. Examples:
+#   Debian/Pi/Armbian : the kernel source tree for the running version
+#                       (Armbian: the tree fetched by https://github.com/armbian/build,
+#                        or a family repo such as armbian/linux-rockchip)
 set -e
 
 DEST="vendor"

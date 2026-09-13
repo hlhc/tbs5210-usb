@@ -7,10 +7,11 @@ trimmed here to only the modules this device needs and compiled against the
 **running kernel's own `dvb-core`/`dvb-usb`**, without shipping an entire
 v4l media tree.
 
-Primary target: Debian / Raspberry Pi OS **arm64**, kernel **7.x**. The same
-sources build and load on **Fedora x86_64** for testing — the DVB/USB stack
-is arch-neutral, so you can validate the driver without the Pi. It also
-builds on 6.x within the range supported by the sources.
+Primary target: Debian / Raspberry Pi OS / **Armbian** **arm64**, kernel
+**7.x**. The same sources build and load on **Fedora x86_64** for testing —
+the DVB/USB stack is arch-neutral, so you can validate the driver without the
+board. It also builds on 6.x within the range supported by the sources, and
+cross-builds for arm64/armhf from an amd64 host.
 
 ## Hardware
 
@@ -48,6 +49,8 @@ source tree:
 ./refresh-headers.sh v7.2         # a specific mainline tag/branch
 ./refresh-headers.sh /path/to/linux-kernel-source   # distro kernel tree
 #   Debian : apt-get source linux   (or the matching linux-source-<ver>)
+#   Armbian: the tree fetched by armbian/build, or a family repo
+#            (e.g. https://github.com/armbian/linux-rockchip)
 #   Fedora : see "Refreshing headers on Fedora" below
 ```
 
@@ -62,6 +65,17 @@ The build needs the headers that match `uname -r` exactly.
   ```sh
   sudo apt-get install build-essential linux-headers-$(uname -r)
   ```
+- Armbian:
+  ```sh
+  sudo apt-get install build-essential
+  # install the headers that match the running kernel
+  sudo armbian-config --cmd HEAD01
+  # or the equivalent package: linux-headers-<branch>-<family>, e.g.
+  #   sudo apt-get install linux-headers-current-rockchip64
+  #   (derive the suffix: linux-headers-$(uname -r | cut -d- -f2-))
+  ```
+  The Makefile finds headers in `/lib/modules/$(uname -r)/build` or, if that
+  symlink is absent, in `/usr/src/linux-headers-$(uname -r)`.
 - Fedora / RHEL:
   ```sh
   sudo dnf install gcc make kernel-devel-$(uname -r) kernel-headers
@@ -95,6 +109,8 @@ Install the firmware (both blobs are required — the USB bridge firmware is
 loaded by `dvb-usb-tbs5210`, the demod firmware by `gx1503`):
 
 ```sh
+sudo make install-firmware          # copies both into /lib/firmware
+# or:
 sudo cp firmware/dvb-usb-id5210.fw firmware/dvb-demod-gx1503B.fw /lib/firmware/
 ```
 
@@ -136,6 +152,46 @@ This rebuilds automatically on kernel upgrades.
   ```
 - Fedora's kernel is extensively patched, so if the ABI check fails after a
   kernel update, refresh the vendored `dvb-usb.h` as above and rebuild.
+
+### Armbian notes
+
+Armbian is Debian-based, so the normal flow works:
+
+```sh
+sudo apt-get install build-essential
+sudo armbian-config --cmd HEAD01        # install matching kernel headers
+make -j$(nproc)
+sudo make install
+sudo make install-firmware
+```
+
+- **No module signing.** ARM boards don't use UEFI Secure Boot, so unlike
+  Fedora the modules load unsigned. Ignore the signing note under Fedora.
+- **Headers.** Armbian packages headers per branch/family as
+  `linux-headers-<branch>-<family>` (branch `current`/`edge`/`legacy`/`vendor`;
+  family e.g. `rockchip64`, `sunxi64`, `meson64`, `rk35xx`). There is usually
+  no `linux-headers-$(uname -r)` package. Install the matching one with
+  `sudo armbian-config --cmd HEAD01`, or e.g.
+  `sudo apt-get install linux-headers-current-rockchip64`. The Makefile falls
+  back to `/usr/src/linux-headers-$(uname -r)` if
+  `/lib/modules/$(uname -r)/build` is missing.
+- **Patched BSP kernels.** Armbian kernels (`*-current-rockchip64`,
+  `*-sunxi64`, `*-meson64`, ...) carry patches. If the driver loads but probe
+  fails with an ABI/`dvb-usb` mismatch, refresh the vendored header from the
+  matching Armbian kernel source, then rebuild:
+  ```sh
+  ./refresh-headers.sh /path/to/armbian/linux-<family>
+  ```
+  Sources come from `https://github.com/armbian/build` (the kernel tree it
+  fetches) or the family repo, e.g. `armbian/linux-rockchip`.
+- **DKMS on Armbian** works the same as Debian (see above); it re-signs
+  nothing and rebuilds on kernel upgrades. Armbian ABI bumps across
+  `current`/`edge` often need a DKMS rebuild or a header refresh.
+- **Cross-build from an amd64 host** (headers for the target kernel required):
+  ```sh
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+       KDIR=/path/to/target/linux-headers
+  ```
 
 ## Verify
 
