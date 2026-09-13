@@ -56,6 +56,7 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i = 0;
+	int ret;
 	u8 buf6[60];
 	u8 inbuf[60];
 
@@ -78,11 +79,18 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 		//register
 		buf6[2] = msg[0].buf[0];
 
-		tbs5210_op_rw(d->udev, 0x90, 0, 0,
+		ret = tbs5210_op_rw(d->udev, 0x90, 0, 0,
 					buf6, 3, TBS5210_WRITE_MSG);
-		//msleep(5);
-		tbs5210_op_rw(d->udev, 0x91, 0, 0,
+		if (ret < 0)
+			goto err;
+		ret = tbs5210_op_rw(d->udev, 0x91, 0, 0,
 					inbuf, buf6[0], TBS5210_READ_MSG);
+		if (ret < 0)
+			goto err;
+		if (ret != msg[1].len) {
+			ret = -EREMOTEIO;
+			goto err;
+		}
 		memcpy(msg[1].buf, inbuf, msg[1].len);
 		break;
 	case 1:
@@ -95,20 +103,31 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 				for(i=0;i<msg[0].len;i++) {
 					buf6[2+i] = msg[0].buf[i];//register
 				}
-				tbs5210_op_rw(d->udev, 0x80, 0, 0,
+				ret = tbs5210_op_rw(d->udev, 0x80, 0, 0,
 					buf6, msg[0].len+2, TBS5210_WRITE_MSG);
+				if (ret < 0)
+					goto err;
 			} else {
 				buf6[0] = msg[0].len;//length
 				buf6[1] = (msg[0].addr<<1) | 0x01;//addr
-				tbs5210_op_rw(d->udev, 0x93, 0, 0,
+				ret = tbs5210_op_rw(d->udev, 0x93, 0, 0,
 						buf6, 2, TBS5210_WRITE_MSG);
-				//msleep(5);
-				tbs5210_op_rw(d->udev, 0x91, 0, 0,
+				if (ret < 0)
+					goto err;
+				ret = tbs5210_op_rw(d->udev, 0x91, 0, 0,
 					inbuf, buf6[0], TBS5210_READ_MSG);
+				if (ret < 0)
+					goto err;
+				if (ret != msg[0].len) {
+					ret = -EREMOTEIO;
+					goto err;
+				}
 				memcpy(msg[0].buf, inbuf, msg[0].len);
 			}
-			//msleep(3);
 			break;
+		default:
+			ret = -EOPNOTSUPP;
+			goto err;
 		}
 
 		break;
@@ -116,6 +135,10 @@ static int tbs5210_i2c_transfer(struct i2c_adapter *adap,
 
 	mutex_unlock(&d->i2c_mutex);
 	return num;
+
+err:
+	mutex_unlock(&d->i2c_mutex);
+	return ret;
 }
 
 static u32 tbs5210_i2c_func(struct i2c_adapter *adapter)
