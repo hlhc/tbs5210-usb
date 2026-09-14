@@ -27,6 +27,9 @@ struct gx1503_dev {
 	int clk_freq;
 	bool fw_loaded;
 	bool active;
+	bool mcu_running;
+	unsigned long lock_since;
+	unsigned long unlock_since;
 	
 };
 

@@ -304,7 +304,8 @@ stated.
 | Area | Change | Why | Behaviour |
 |---|---|---|---|
 | `gx1503` | `DVBFE_ALGO_HW` + `tune()` instead of dvb-core software zigzag | dvb-core re-tuned at f, f±step on any lock loss; each `set_frontend()` hard-resets the demod and restarts acquisition | An outage lasts as long as the disturbance plus one re-acquisition, instead of a retune loop |
-| `gx1503` | **Demod MCU halted once locked** (`mcu_halt`, default on) | The firmware blob is an 8051 supervisor that periodically switches the channel estimator to a short "fast" profile; on a multipath channel that excursion collapses SNR and drops sync | The steady profile is held; the MCU is restarted for every tune and if lock stays lost. `mcu_halt=0` restores the vendor behaviour |
+| `gx1503` | **Demod firmware patched at upload** (`fw_patch`, default on) | The blob is an 8051 supervisor whose tick counter periodically switches the channel estimator to a short-averaging acquisition profile; on a multipath channel that excursion collapses SNR and drops sync | One byte of the uploaded program (`0x026a`, `0x50 → 0xFF`) stops the excursion firing on the counter wrap; everything else the MCU does is unchanged. Applied only to the known blob (size and instruction bytes checked, result logged). `fw_patch=0` uploads the vendor bytes |
+| `gx1503` | Demod MCU halted once locked (`mcu_halt`, default off) | Fallback for a blob the patch does not recognise | Freezes the tracking profile but also stops the MCU's other duties; restarted for every tune and if lock stays lost |
 | `gx1503` | `FE_CAN_RECOVER` advertised | Matches the above | Informational |
 | `gx1503` | CNR reported in millidB (`SNR*1000`, was `*250`) | DVBv5 `FE_SCALE_DECIBEL` is 0.001 dB | Applications reading the decibel statistic see the real value |
 | `gx1503` | Guard-interval SNR offset kept fractional | `int snr_mod[] = {2.6, 0, 2.2}` truncated to `{2, 0, 2}` | Reported SNR follows the vendor formula |
@@ -332,15 +333,14 @@ advertised delivery system.
 ### Reverse engineering of the demod firmware
 
 NationalChip publishes no datasheet or register map for the GX1503B, and
-TBS ships the demod blob without documentation. To understand the
-periodic sync loss, the blob was disassembled (it is an SDCC-compiled
-8051 program, not DSP microcode) and its register writes were observed
-live through the bridge's I2C adapter. The `mcu_halt` change and the
-register semantics it relies on (`0xF7` bit 4 as the MCU run bit,
-`0x99` as the profile indicator) come from that analysis, not from any
-specification. They were validated on one TBS5210 in one installation;
-there is **no guarantee** they hold on other units, firmware revisions
-or signals. `mcu_halt=0` restores the vendor behaviour if in doubt.
+TBS ships the demod blob without documentation. To understand a periodic
+sync loss, the blob was disassembled (it is an 8051 program, not DSP
+microcode) and its register writes were observed live through the
+bridge's I2C adapter. The `fw_patch` default and the `mcu_halt` fallback
+come from that analysis, not from any specification. They were validated
+on one TBS5210 with one firmware revision; there is **no guarantee** they
+hold on other units, firmware revisions or signals. `fw_patch=0
+mcu_halt=0` restores the vendor behaviour if in doubt.
 
 ## License
 

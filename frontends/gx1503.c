@@ -11,6 +11,31 @@ static int imp_thres = -1;
 module_param(imp_thres, int, 0444);
 MODULE_PARM_DESC(imp_thres, "Impulse-noise threshold 0..255 (default: 30)");
 
+/*
+ * The vendor firmware periodically switches the demod's channel-estimator
+ * profile from a tick counter; on some channels that switch costs sync.
+ * With fw_patch the counter compare at code offset 0x0269 ("XRL A,#0x50")
+ * is changed to a value the counter never reaches while the blob is
+ * uploaded, so the switch only follows a change of transmission
+ * parameters.  Applied only to the blob with the expected size and bytes.
+ */
+static bool fw_patch = true;
+module_param(fw_patch, bool, 0444);
+MODULE_PARM_DESC(fw_patch, "Patch the demod firmware to drop the periodic estimator switch (default: Y)");
+
+/*
+ * Fallback for a blob the patch does not recognise: halt the firmware MCU
+ * (0xF7 bit 4) once locked with a tracking profile in place.  The MCU is
+ * restarted for every new tune and if lock stays lost.
+ */
+static bool mcu_halt;
+module_param(mcu_halt, bool, 0444);
+MODULE_PARM_DESC(mcu_halt, "Halt the demod MCU once locked instead of patching (default: N)");
+
+#define GX1503_FW_SIZE		3615
+#define GX1503_FW_PATCH_OFF	0x026a
+static const u8 gx1503_fw_patch_ctx[] = { 0xe5, 0x3f, 0x64, 0x50, 0x70, 0x7b };
+
 static int GX1503_100Log(int iNumber_N)
 {
 	int iLeftMoveCount_M = 0;
@@ -96,10 +121,23 @@ static int gx1503_init(struct dvb_frontend *fe)
 	
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
 			fw_name);
-	for(i = 0;i<fw->size;i++) {
-		ret = regmap_write(dev->regmap,0xF6,fw->data[i]);
-		if (ret)
-			goto err_release_firmware;
+	{
+		size_t poff = GX1503_FW_PATCH_OFF - 3;
+		bool patch = fw_patch && fw->size == GX1503_FW_SIZE &&
+			!memcmp(fw->data + poff, gx1503_fw_patch_ctx,
+				sizeof(gx1503_fw_patch_ctx));
+
+		dev_info(&client->dev, "firmware %zu bytes, excursion patch %s\n",
+			 fw->size, fw_patch ? (patch ? "applied" : "not applicable") : "off");
+		for(i = 0;i<fw->size;i++) {
+			u8 b = fw->data[i];
+
+			if (patch && i == GX1503_FW_PATCH_OFF)
+				b = 0xff;
+			ret = regmap_write(dev->regmap,0xF6,b);
+			if (ret)
+				goto err_release_firmware;
+		}
 	}
 
 	release_firmware(fw);
@@ -113,6 +151,7 @@ static int gx1503_init(struct dvb_frontend *fe)
 	ret = regmap_write(dev->regmap,0xf7,temp|0x10);
 	if(ret)
 		goto err;
+	dev->mcu_running = true;
 
 	dev->active = true;
 	
@@ -505,20 +544,81 @@ static enum dvbfe_algo gx1503_get_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
+static int gx1503_mcu_run(struct dvb_frontend *fe, bool run)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct gx1503_dev *dev = i2c_get_clientdata(client);
+	int ret;
+
+	ret = GX1503_WriteRegWithMask(client, 0xF7, run, 4, 4);
+	if (!ret)
+		dev->mcu_running = run;
+	return ret;
+}
+
+/* Acquisition profiles set 0x99 to 0x1e; tracking profiles set 0xCA bits 7 and 0. */
+static bool gx1503_tracking_profile(struct gx1503_dev *dev)
+{
+	unsigned int p99, pca;
+
+	if (regmap_read(dev->regmap, 0x99, &p99) ||
+	    regmap_read(dev->regmap, 0xCA, &pca))
+		return false;
+	return p99 != 0x1e && (pca & 0x81) == 0x81;
+}
+
+static void gx1503_mcu_halt_steady(struct dvb_frontend *fe)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct gx1503_dev *dev = i2c_get_clientdata(client);
+
+	if (!gx1503_tracking_profile(dev))
+		return;
+	if (gx1503_mcu_run(fe, false))
+		return;
+	if (!gx1503_tracking_profile(dev))
+		gx1503_mcu_run(fe, true);
+}
+
 static int gx1503_tune(struct dvb_frontend *fe, bool re_tune,
 		       unsigned int mode_flags, unsigned int *delay,
 		       enum fe_status *status)
 {
+	struct i2c_client *client = fe->demodulator_priv;
+	struct gx1503_dev *dev = i2c_get_clientdata(client);
 	int ret;
 
 	if (re_tune) {
+		if (!dev->mcu_running)
+			gx1503_mcu_run(fe, true);
 		ret = gx1503_set_frontend(fe);
 		if (ret)
 			return ret;
+		dev->lock_since = 0;
+		dev->unlock_since = 0;
 	}
 
 	*delay = HZ / 5;
-	return gx1503_read_status(fe, status);
+	ret = gx1503_read_status(fe, status);
+	if (ret || !mcu_halt)
+		return ret;
+
+	if (*status & FE_HAS_LOCK) {
+		dev->unlock_since = 0;
+		if (!dev->lock_since)
+			dev->lock_since = jiffies;
+		else if (dev->mcu_running &&
+			 time_after(jiffies, dev->lock_since + 2 * HZ))
+			gx1503_mcu_halt_steady(fe);
+	} else {
+		dev->lock_since = 0;
+		if (!dev->unlock_since)
+			dev->unlock_since = jiffies;
+		else if (!dev->mcu_running &&
+			 time_after(jiffies, dev->unlock_since + 5 * HZ))
+			gx1503_mcu_run(fe, true);
+	}
+	return 0;
 }
 
 static const struct dvb_frontend_ops gx1503_ops = {
