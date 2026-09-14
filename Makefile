@@ -72,7 +72,7 @@ install: default
 
 install-firmware:
 	install -d $(FIRMWARE_DIR)
-	install -m 644 firmware/dvb-usb-id5210.fw firmware/dvb-demod-gx1503B.fw $(FIRMWARE_DIR)/
+	install -m 644 firmware/dvb-usb-id5210.fw firmware/dvb-demod-gx1503B.fw firmware/dvb-demod-gx1503B-supervisor.fw $(FIRMWARE_DIR)/
 
 clean:
 	@if [ -n "$(BUILD)" ] && [ -d "$(BUILD)" ]; then \

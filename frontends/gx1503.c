@@ -12,13 +12,22 @@ module_param(imp_thres, int, 0444);
 MODULE_PARM_DESC(imp_thres, "Impulse-noise threshold 0..255 (default: 30)");
 
 /*
- * The vendor firmware periodically switches the demod's channel-estimator
- * profile from a tick counter; on some channels that switch costs sync.
- * With fw_patch the counter compare at code offset 0x0269 ("XRL A,#0x50")
- * is changed to a value the counter never reaches while the blob is
- * uploaded, so the switch only follows a change of transmission
- * parameters.  Applied only to the blob with the expected size and bytes.
+ * The demod's internal MCU runs a small supervisor program that selects the
+ * channel-estimator settings.  Two images are supported:
+ *  - the replacement supervisor (GX1503_SUPERVISOR_FIRMWARE, default): keeps
+ *    the tracking settings in place while synced, re-acquires only after a
+ *    TPS change or a sustained sync loss;
+ *  - the vendor blob (GX1503_FIRMWARE): used when the replacement is not
+ *    installed or with vendor_fw=1.  It periodically switches to acquisition
+ *    settings from a tick counter, which costs sync on multipath channels;
+ *    fw_patch removes that periodic switch at upload (code offset 0x0269,
+ *    "XRL A,#0x50" -> #0xFF), applied only to the blob with the expected
+ *    size and bytes.
  */
+static bool vendor_fw;
+module_param(vendor_fw, bool, 0444);
+MODULE_PARM_DESC(vendor_fw, "Upload the vendor demod firmware instead of the replacement supervisor (default: N)");
+
 static bool fw_patch = true;
 module_param(fw_patch, bool, 0444);
 MODULE_PARM_DESC(fw_patch, "Patch the demod firmware to drop the periodic estimator switch (default: Y)");
@@ -91,7 +100,8 @@ static int gx1503_init(struct dvb_frontend *fe)
 	struct gx1503_dev *dev = i2c_get_clientdata(client);
 	int ret,temp,i ;
 	const struct firmware *fw;
-	const char *fw_name = GX1503_FIRMWARE;
+	bool vendor_image = vendor_fw;
+	const char *fw_name = vendor_image ? GX1503_FIRMWARE : GX1503_SUPERVISOR_FIRMWARE;
 
 	ret = regmap_read(dev->regmap,0xf5,&temp);
 	ret = regmap_write(dev->regmap,0xf5,temp&(~0x10));
@@ -107,9 +117,33 @@ static int gx1503_init(struct dvb_frontend *fe)
 	ret = regmap_write(dev->regmap,0xf5,temp&(~0x04));
 	if(ret)
 		goto err;
+	/*
+	 * The MCU's code RAM can only be loaded while the MCU is stopped
+	 * (0xF7 bit 4 clear), which is the power-on state.  After a module
+	 * reload the bit is still set from the previous session and no
+	 * register write resets the MCU: uploading then corrupts the running
+	 * program and leaves the demod without a supervisor.  Keep whatever
+	 * image is running; a new image needs a power cycle of the device.
+	 */
+	ret = regmap_read(dev->regmap,0xf7,&temp);
+	if(ret)
+		goto err;
+	if (!dev->fw_loaded && (temp & 0x10)) {
+		dev_warn(&client->dev,
+			 "demod MCU already running, keeping its current firmware (replug the device to load '%s')\n",
+			 fw_name);
+		dev->fw_loaded = true;
+	}
 	if(!dev->fw_loaded){
 	/*download FW*/
 	ret = request_firmware(&fw,fw_name, &client->dev);
+	if (ret && !vendor_fw) {
+		dev_warn(&client->dev, "firmware file '%s' not found, falling back to '%s'\n",
+			 fw_name, GX1503_FIRMWARE);
+		fw_name = GX1503_FIRMWARE;
+		vendor_image = true;
+		ret = request_firmware(&fw, fw_name, &client->dev);
+	}
 	if(ret){
 		dev_err(&client->dev,
 				"firmware file '%s' not found\n",
@@ -127,8 +161,11 @@ static int gx1503_init(struct dvb_frontend *fe)
 			!memcmp(fw->data + poff, gx1503_fw_patch_ctx,
 				sizeof(gx1503_fw_patch_ctx));
 
-		dev_info(&client->dev, "firmware %zu bytes, excursion patch %s\n",
-			 fw->size, fw_patch ? (patch ? "applied" : "not applicable") : "off");
+		if (vendor_image)
+			dev_info(&client->dev, "vendor firmware %zu bytes, excursion patch %s\n",
+				 fw->size, fw_patch ? (patch ? "applied" : "not applicable") : "off");
+		else
+			dev_info(&client->dev, "replacement supervisor firmware %zu bytes\n", fw->size);
 		for(i = 0;i<fw->size;i++) {
 			u8 b = fw->data[i];
 
@@ -788,4 +825,6 @@ module_i2c_driver(gx1503_driver);
 
 MODULE_AUTHOR("Davin<Davin@tbsdtv.com>");
 MODULE_DESCRIPTION("gx1503 DTMB(GB20600-2006) driver");
+MODULE_FIRMWARE(GX1503_SUPERVISOR_FIRMWARE);
+MODULE_FIRMWARE(GX1503_FIRMWARE);
 MODULE_LICENSE("GPL");

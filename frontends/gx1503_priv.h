@@ -9,7 +9,8 @@
 #include <linux/regmap.h>
 #include <linux/version.h>
 
-#define GX1503_FIRMWARE "dvb-demod-gx1503B.fw"
+#define GX1503_FIRMWARE "dvb-demod-gx1503B.fw"			/* vendor supervisor blob */
+#define GX1503_SUPERVISOR_FIRMWARE "dvb-demod-gx1503B-supervisor.fw"	/* replacement, see README */
 
 struct gx1503_dev {
 	/*for i2c repeater*/
